@@ -22,6 +22,7 @@ struct ContentView: View {
     @State var xBeschleunigung = 0.00000
     @State var yBeschleunigung = 0.00000
     @State var zBeschleunigung = 0.00000
+    @State var xyzBeschleunigung = 0.00000
     @State var timer: Timer?
     
 
@@ -54,6 +55,7 @@ struct ContentView: View {
                     .padding(.top, 5)
                 Text("Z: \(zBeschleunigung, specifier: "%.5f")")
                     .padding(.top, 5)
+                Text("Insgesammt:\(xyzBeschleunigung, specifier: "%.5f")")
             }
         }
         .onChange(of: start) { v in
@@ -81,6 +83,7 @@ struct ContentView: View {
                 xBeschleunigung = Beschleunigung.acceleration.x
                 yBeschleunigung = Beschleunigung.acceleration.y
                 zBeschleunigung = Beschleunigung.acceleration.z
+                xyzBeschleunigung = sqrt(xBeschleunigung^2 + zBeschleunigung^2 + zBeschleunigung^2)
                 
             }
         }
