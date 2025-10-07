@@ -19,14 +19,22 @@ struct ContentView: View {
 //Beschneunigung Variablen:
     
     let manager = CMMotionManager()
+    
     @State var xBeschleunigung = 0.00000
     @State var yBeschleunigung = 0.00000
     @State var zBeschleunigung = 0.00000
-    @State var xyzBeschleunigung = 0.00000
-    @State var timer: Timer? = nil
+    @State var maxBeschleunigung = 0.00000
     
+//Geschwindikeit Variabeln:
+    
+    @State var xGeschwindigkeit = 0.00000
+    @State var yGeschwindigkeit = 0.00000
+    @State var zGeschwindigkeit = 0.00000
+    @State var gesammtGeschwindigkeit = 0.00000
+    
+    @State var timer: Timer?
 
-    
+//UI:
     
     var body: some View {
         VStack {
@@ -55,41 +63,76 @@ struct ContentView: View {
                     .padding(.top, 5)
                 Text("Z: \(zBeschleunigung, specifier: "%.5f")")
                     .padding(.top, 5)
-                Text("Insgesammt:\(xyzBeschleunigung, specifier: "%.5f")")
+                //Text("Max:\(maxBeschleunigung, specifier: "%.5f")")
+                Text("X: \(xGeschwindigkeit, specifier: "%.5f")")
+                    .padding(.top, 5)
+                Text("Y: \(yGeschwindigkeit, specifier: "%.5f")")
+                    .padding(.top, 5)
+                Text("Z: \(zGeschwindigkeit, specifier: "%.5f")")
+                    .padding(.top, 5)
+                Text("Geschwindgkeit:\(gesammtGeschwindigkeit, specifier: "%.5f")")
+                
             }
         }
-        .onChange(of: start) { v in
-                    if v == true {
-                        startAccelerometerUpdates()
-                    }
-                }
+        .onChange(of: start) { newValue in
+            if newValue == true {
+                print(true)
+                startMessung()
+                GeschwindigkeitsTimer()
+                        
+            }
+        }
         .onDisappear {
-                manager.stopAccelerometerUpdates()
-                timer?.invalidate()
-                timer = nil
+            manager.stopDeviceMotionUpdates()
+            timer?.invalidate()
+            timer = nil
         }
     }
+    
+    
+    private func startMessung() {
         
-    private func startAccelerometerUpdates() {
-        guard manager.isAccelerometerAvailable else {
+        //Sensoren pruefen
+        guard manager.isDeviceMotionAvailable else {
+            text = "Sensor geht nicht"
             return
-            }
+        }
         
-        manager.startAccelerometerUpdates()
-        manager.accelerometerUpdateInterval = 0.01
+        //INtervall
+        manager.deviceMotionUpdateInterval = 0.01
         
-        let timer = Timer.scheduledTimer(withTimeInterval: 0.01, repeats: true) { timer in
-            if let Beschleunigung = self.manager.accelerometerData {
-                xBeschleunigung = Beschleunigung.acceleration.x
-                yBeschleunigung = Beschleunigung.acceleration.y
-                zBeschleunigung = Beschleunigung.acceleration.z
+        // Start Messung
+        manager.startDeviceMotionUpdates(to: .main) { motion, error in
+            if let motion = motion {
                 
-                let xSquare = xBeschleunigung * xBeschleunigung
-                let ySquare = yBeschleunigung * yBeschleunigung
-                let zSquare = zBeschleunigung * zBeschleunigung
-                xyzBeschleunigung = sqrt(xSquare + ySquare + zSquare)
+                let acc = motion.userAcceleration
+                xBeschleunigung = acc.x
+                yBeschleunigung = acc.y
+                zBeschleunigung = acc.z
                 
+                //Ueberpruefen ob es richtig funktionniert
+                if maxBeschleunigung < abs(acc.x) {
+                    maxBeschleunigung = abs(acc.x)
+                }
+                if maxBeschleunigung < abs(acc.z) {
+                    maxBeschleunigung = abs(acc.z)
+                }
+                if maxBeschleunigung < abs(acc.y) {
+                    maxBeschleunigung = abs(acc.y)
+                }
             }
+        }
+    }
+    
+    func GeschwindigkeitsTimer() {
+        timer = Timer.scheduledTimer(withTimeInterval: 0.01, repeats: true) { _ in
+            // Integriere X,Y,Z
+            xGeschwindigkeit = xGeschwindigkeit + xBeschleunigung * 9.81 * 0.01
+            yGeschwindigkeit = yGeschwindigkeit + yBeschleunigung * 9.81 * 0.01
+            zGeschwindigkeit = zGeschwindigkeit + zBeschleunigung * 9.81 * 0.01
+            
+            gesammtGeschwindigkeit = sqrt(pow(xGeschwindigkeit, 2) + pow(yGeschwindigkeit, 2) + pow(zGeschwindigkeit, 2))
+            
         }
     }
 }
