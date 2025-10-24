@@ -8,6 +8,16 @@ import SwiftUI
 import CoreMotion
 import CoreLocation
 
+
+
+struct BeschleunigungMessung: Codable {
+    let timestamp: Date
+    let xBeschleunigung: Double
+    let yBeschleunigung: Double
+    let zBeschleunigung: Double
+}
+    
+    
 class LocationDelegate: NSObject, CLLocationManagerDelegate {
     var onLocationUpdate: ((Double, Double, Double) -> Void)?
     
@@ -34,12 +44,16 @@ struct ContentView: View {
     @State var xBeschleunigung = 0.00
     @State var yBeschleunigung = 0.00
     @State var zBeschleunigung = 0.00
+    @State var xBeschleunigungOhneG = 0.00
+    @State var yBeschleunigungOhneG = 0.00
+    @State var zBeschleunigungOhneG = 0.00
     @State var xBeschleunigungTotal = 0.00
     @State var yBeschleunigungTotal = 0.00
     @State var zBeschleunigungTotal = 0.00
     @State var maxBeschleunigung = 0.00
     
     @State var Zaeler = 0
+    @State var reset = false
     
     //Geschwindikeit Variabeln:
     
@@ -54,6 +68,11 @@ struct ContentView: View {
     @State var gesammtDistanz = 0.00
     
     @State var timer: Timer?
+    
+    //Varabeln fuer das Speichern der Daten:
+    
+    @State private var beschleunigungMessungen: [BeschleunigungMessung] = []
+
     
     //GPS Variabeln:
     
@@ -84,6 +103,8 @@ struct ContentView: View {
     
     var body: some View {
         VStack {
+            
+            //Start Button
             if visibleButton == true {
                 Button {
                     visibleButton = false
@@ -99,17 +120,40 @@ struct ContentView: View {
                 }
             }
             
+        
             if Textfeld == true {
+                
                 Text(text)
                     .padding()
                     .font(.system(size: 30))
+                
+                //reset Button
+                Button {
+                    DispatchQueue.main.asyncAfter(deadline: .now()) {
+                        
+                        xGeschwindigkeit = 0.0
+                        yGeschwindigkeit = 0.0
+                        zGeschwindigkeit = 0.0
+                        gesammtGeschwindigkeit = 0.0
+                        xDistanz = 0.0
+                        yDistanz = 0.0
+                        zDistanz = 0.0
+                        gesammtDistanz = 0.0
+                        teileDatei()
+                    }
+                } label: {
+                    Image(systemName: "repeat.circle")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(height: 40)
+                }
+                
                 Text("X: \(xBeschleunigung, specifier: "%.3f")")
                     .padding(.top, 5)
                 Text("Y: \(yBeschleunigung, specifier: "%.3f")")
                     .padding(.top, 5)
                 Text("Z: \(zBeschleunigung, specifier: "%.3f")")
                     .padding(.top, 5)
-                //Text("Max:\(maxBeschleunigung, specifier: "%.3f")")
                 Text("X: \(xDistanz, specifier: "%.3f")")
                     .padding(.top, 5)
                 Text("Y: \(yDistanz, specifier: "%.3f")")
@@ -126,15 +170,13 @@ struct ContentView: View {
                     .padding(.top, 5)
                 Text("Höhe über Meer: \(hoehe, specifier: "%.3f")")
                     .padding(.top, 5)
-                
+                Text("GPS-Distanz: \(gesammtBewegung, specifier: "%.3f")")
+                    .padding(.top, 5)
             }
         }
         
         
-        
-        
-        
-        .onAppear {
+        .onAppear { //sobald App gestartet wird, wird GPS ausgelesen
             locationDelegate.onLocationUpdate = { lat, lon, alt in
                 BreitenGrad = lat
                 LaengenGrad = lon
@@ -145,26 +187,70 @@ struct ContentView: View {
             locationManager.desiredAccuracy = kCLLocationAccuracyBest
             locationManager.requestWhenInUseAuthorization()
             locationManager.startUpdatingLocation()
+            GPSberechnung()
         }
         
         .onChange(of: start) { newValue in
             if newValue == true {
                 startMessung()
-                GeschwindigkeitsTimer()
+                //GeschwindigkeitsTimer()
             }
         }
-        
+     
         .onDisappear {
             manager.stopDeviceMotionUpdates()
             timer?.invalidate()
             timer = nil
             locationManager.stopUpdatingLocation()
+            speichernBeschleunigungsDaten()
+        }
+    }
+    
+    //Funktionen:::::
+    
+    
+    //Funktion zum speichern der Daten
+    
+    private func speichernBeschleunigungsDaten() {
+        let fileManager = FileManager.default
+        let url = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("beschleunigung_messungen.csv")
+        
+        let header = "Timestamp,X,Y,Z\n"
+        var csvText = header
+        
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "HH:mm:ss.SSS"
+        
+        // Daten im CVS-Format --- Hilfe von ChatGPT
+        for messung in beschleunigungMessungen {
+            let timestamp = dateFormatter.string(from: messung.timestamp)
+            let line = "\(timestamp),\(messung.xBeschleunigung),\(messung.yBeschleunigung),\(messung.zBeschleunigung)\n"
+            csvText.append(line)
+        }
+        do {
+            try csvText.write(to: url, atomically: true, encoding: .utf8)
+        } catch {
+            print("Fehler beim speichern")
+        }
+    }
+
+    private func teileDatei() {    //ChatGPT hilfe
+        let fileManager = FileManager.default
+        let url = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("beschleunigung_messungen.csv")
+            
+        if fileManager.fileExists(atPath: url.path) {
+            let activityController = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                let rootViewController = windowScene.windows.first?.rootViewController {
+                rootViewController.present(activityController, animated: true, completion: nil)
+            }
         }
     }
     
     
-    //Funktionen
     
+    
+    //FUnktion auslesen und integrieren der Beschleunigungsdaten:
     
     private func startMessung() {
         
@@ -175,7 +261,7 @@ struct ContentView: View {
         }
         
         //INtervall
-        manager.deviceMotionUpdateInterval = 0.02
+        manager.deviceMotionUpdateInterval = 0.01
         
         // Start Messung
         manager.startDeviceMotionUpdates(to: .main) { motion, error in
@@ -186,61 +272,43 @@ struct ContentView: View {
                 yBeschleunigung = acc.y
                 zBeschleunigung = acc.z
                 
-                xBeschleunigung = round(xBeschleunigung * 1000) / 1000
-                yBeschleunigung = round(yBeschleunigung * 1000) / 1000
-                zBeschleunigung = round(zBeschleunigung * 1000) / 1000
-            }
-            
-            //Sensorrauschen im Ruhezustand
-            if xBeschleunigung < 0.01 && xBeschleunigung > -0.01 {
-                xBeschleunigung = 0.00000
-            }
-            if yBeschleunigung < 0.01 && yBeschleunigung > -0.01 {
-                yBeschleunigung = 0.00000
-            }
-            
-            if zBeschleunigung < 0.01 && zBeschleunigung > -0.01 {
-                zBeschleunigung = 0.00000
+                xBeschleunigungOhneG = xBeschleunigung*9.81
+                yBeschleunigungOhneG = yBeschleunigung*9.81
+                zBeschleunigungOhneG = zBeschleunigung*9.81
+                
+                //Sensorrauschen im Ruhezustand
+                if xBeschleunigungOhneG < 0.05 && xBeschleunigungOhneG > -0.05 {
+                    xBeschleunigungOhneG = 0.00000
+                }
+                if yBeschleunigungOhneG < 0.05 && yBeschleunigungOhneG > -0.05 {
+                    yBeschleunigungOhneG = 0.00000
+                }
+                
+                if zBeschleunigungOhneG < 0.05 && zBeschleunigungOhneG > -0.05 {
+                    zBeschleunigungOhneG = 0.00000
+                }
+                //Daten speichern
+                let neueMessung = BeschleunigungMessung(timestamp: Date(), xBeschleunigung: xBeschleunigung, yBeschleunigung: yBeschleunigung, zBeschleunigung: zBeschleunigung)
+                beschleunigungMessungen.append(neueMessung)
+                speichernBeschleunigungsDaten()
+                
+                //Integrieren
+                
+                xGeschwindigkeit = xGeschwindigkeit + xBeschleunigungOhneG * 0.01
+                yGeschwindigkeit = yGeschwindigkeit + yBeschleunigungOhneG * 0.01
+                zGeschwindigkeit = zGeschwindigkeit + zBeschleunigungOhneG * 0.01
+                
+                gesammtGeschwindigkeit = sqrt(pow(xGeschwindigkeit, 2) + pow(yGeschwindigkeit, 2) + pow(zGeschwindigkeit, 2))
+                
+                xDistanz = xDistanz + xGeschwindigkeit * 0.01
+                yDistanz = yDistanz + yGeschwindigkeit * 0.01
+                zDistanz = zDistanz + zGeschwindigkeit * 0.01
             }
         }
     }
-    
-    func GeschwindigkeitsTimer() {
-        timer = Timer.scheduledTimer(withTimeInterval: 0.02, repeats: true) { _ in
-            
-            //xBeschleunigungTotal = xBeschleunigungTotal + xBeschleunigung
-            //yBeschleunigungTotal = yBeschleunigungTotal + yBeschleunigung
-            //zBeschleunigungTotal = zBeschleunigungTotal + zBeschleunigung
-            
-            //Zaeler = Zaeler + 1
-            
-            //if Zaeler == 20 {
-                //Zaeler = 0
-            
-                // Integriere X,Y,Z
-            xGeschwindigkeit = xGeschwindigkeit + xBeschleunigung * 9.81 * 0.02
-            yGeschwindigkeit = yGeschwindigkeit + yBeschleunigung * 9.81 * 0.02
-            zGeschwindigkeit = zGeschwindigkeit + zBeschleunigung * 9.81 * 0.02
- 
-            gesammtGeschwindigkeit = sqrt((xGeschwindigkeit * xGeschwindigkeit) + (yGeschwindigkeit * yGeschwindigkeit) + (zGeschwindigkeit * zGeschwindigkeit))
 
-                // Integriere X,Y,Z
-            xDistanz = xDistanz + xGeschwindigkeit * 0.02
-            yDistanz = yDistanz + yGeschwindigkeit * 0.02
-            zDistanz = zDistanz + zGeschwindigkeit * 0.02
-
-            gesammtDistanz = sqrt((xDistanz * xDistanz) + (yDistanz * yDistanz) + (zDistanz * zDistanz))
-
-            
-                //xBeschleunigungTotal = 0.00000
-                //yBeschleunigungTotal = 0.00000
-                //zBeschleunigungTotal = 0.00000
-            
-        }
-    }
-    
     func GPSberechnung() {
-        timer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { _ in
+        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
         
             if einmalig == 0 {  //beim ersten Durchgang wird keine Bewegung registriert
                 einmalig = 1
@@ -254,7 +322,7 @@ struct ContentView: View {
             DeltaHoehe = hoehe - althoehe
             
             MeterBewegungBG = abs(DeltaBG) * 111.133
-            MeterBewegungLG = abs(DeltaLG) * 111.319 * cos(BreitenGrad)
+            MeterBewegungLG = abs(DeltaLG) * 111.319 * cos(BreitenGrad*Double.pi/180) //Radiant
             
             altBreitenGrad = BreitenGrad
             altLaengenGrad = LaengenGrad
@@ -263,11 +331,16 @@ struct ContentView: View {
             //Strecke in Metern
             
             DeltaBewegung = sqrt((MeterBewegungBG * MeterBewegungBG) + (MeterBewegungLG * MeterBewegungLG) + (DeltaHoehe * DeltaHoehe)) // veränderung
-            gesammtBewegung = gesammtBewegung + DeltaBewegung    // gesammt Strecke
+            gesammtBewegung = gesammtBewegung + DeltaBewegung   // gesammt Strecke
             
         }
     }
 }
+
+
+
+
+
 
 #Preview {
     ContentView()
