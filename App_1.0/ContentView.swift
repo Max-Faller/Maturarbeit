@@ -10,8 +10,14 @@ import CoreLocation
 
 
 
-struct BeschleunigungMessung: Codable {  //fuer das Speichern der Datenb
+
+
+
+
+//Variabeln um Daten zu speichern
+struct BeschleunigungMessung: Codable {  //fuer das Speichern der Daten werden Variabeln definiert
     let timestamp: Date
+    
     //Beschleunigung speichern
   
     // Rohdaten drehung
@@ -25,23 +31,35 @@ struct BeschleunigungMessung: Codable {  //fuer das Speichern der Datenb
     
     //Daten Magnetfeld
     let magX, magY, magZ: Double
+    
+    //Daten GPS
 
 }
     
+
+
     
-class LocationDelegate: NSObject, CLLocationManagerDelegate {
-    var onLocationUpdate: ((Double, Double, Double) -> Void)?
+class LocationDelegate: NSObject, CLLocationManagerDelegate {           //klasse wird erstellt -> fuer die GPS Daten
+    var onLocationUpdate: ((Double, Double, Double, Double) -> Void)?
     
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         if let location = locations.last {
-            onLocationUpdate?(location.coordinate.latitude, location.coordinate.longitude, location.altitude)
+            onLocationUpdate?(location.coordinate.latitude, location.coordinate.longitude, location.altitude, location.speed)
         }
     }
 }
 
+
+
+
+
 struct ContentView: View {
     
-    // Variabeln:
+    
+    
+    
+    
+    // Variabeln Allgemein:
     
     @State private var Textfeld = false
     @State var NameTextfeld = false
@@ -49,39 +67,76 @@ struct ContentView: View {
     @State var text = "Beschleunigung:"
     @State var AppName = "App von Max"
     @State var start = false
+    @State var showMenu = false
+    @State var showUI = false
+    @State private var StartStopp = false
+
+    
     
     
     //Beschneunigung Variablen:
     
     let manager = CMMotionManager()
     
-    @State var xBeschleunigung = 0.00
-    @State var yBeschleunigung = 0.00
-    @State var zBeschleunigung = 0.00
-    @State var xWeltOhneG = 0.00
-    @State var yWeltOhneG = 0.00
-    @State var zWeltOhneG = 0.00
-    @State var xBeschleunigungTotal = 0.00
-    @State var yBeschleunigungTotal = 0.00
-    @State var zBeschleunigungTotal = 0.00
-    @State var maxBeschleunigung = 0.00
+    //Beschleunigungsdaten
+    @State private var accX = 0.00
+    @State private var accY = 0.00
+    @State private var accZ = 0.00
     
     @State var xWelt = 0.00
     @State var yWelt = 0.00
     @State var zWelt = 0.00
+    
+    
+    //rohes g
+    @State private var gx = 0.00
+    @State private var gy = 0.00
+    @State private var gz = 0.00
+
+   //Magnetfeld
+    @State private var magnetfeld = 0.00
+    @State private var magX = 0.00
+    @State private var magY = 0.00
+    @State private var magZ = 0.00
+    
+    //Eulerwinkel
+    @State private var rollX = 0.00
+    @State private var pitchY = 0.00
+    @State private var yawZ = 0.00
+    
     @State var m = CMRotationMatrix( m11: 1.0, m12: 0.0, m13: 0.0,
                                      m21: 0.0, m22: 1.0, m23: 0.0,
                                      m31: 0.0, m32: 0.0, m33: 1.0 )
+    
+
 
     @State var Zaeler = 0
     @State var reset = false
     
+    //Gyrovariablen
+    
+    @State var roll = 0.00
+    @State var pitch = 0.00
+    @State var yaw = 0.00
+    
+    //Berechnungen:
+    
+    @State var a_offset_x: Double = 0.00
+    @State var a_offset_y: Double = 0.00
+    @State var a_offset_z: Double = 0.00
+    
+    @State var accX_real = 0.00
+    @State var accY_real = 0.00
+    @State var accZ_real = 0.00
+
+    
+    
     //Geschwindikeit Variabeln:
     
-    @State var xGeschwindigkeit = 0.00
-    @State var yGeschwindigkeit = 0.00
-    @State var zGeschwindigkeit = 0.00
-    @State var gesammtGeschwindigkeit = 0.00
+    @State var Vx = 0.00
+    @State var Vy = 0.00
+    @State var Vz = 0.00
+    @State var Vgesammt = 0.00
     
     @State var xDistanz = 0.00
     @State var yDistanz = 0.00
@@ -89,6 +144,7 @@ struct ContentView: View {
     @State var gesammtDistanz = 0.00
     
     @State var timer: Timer?
+    
     
     //Varabeln fuer das Speichern der Daten:
     
@@ -120,134 +176,191 @@ struct ContentView: View {
     
     @State var DurchschnittGeschwindigkeitGPS = 0.00
     @State var MomentanGeschwindigkeitGPS = 0.00
+    @State var MaxGeschwindigkeit = 0.00
     @State var Startzeit: Date = .now
     
     
     @State var einmalig = 0
     
     
+    //Variabeln zur Karte:
+    
+    @State var position = MapCameraPosition.region(MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: 0.00, longitude: 0.00), span: MKCoordinateSpan(latitudeDelta: 0.002, longitudeDelta: 0.002)))
+    @State var userLocation: CLLocationCoordinate2D?
+    
     //UI:
     
     var body: some View {
+        
+        
         ZStack {
-            
-            VStack {
-                
-                //Start Button
+            if showUI == false {                                        //Startbildschirm
                 if visibleButton == true {
-                    Button {
-                        visibleButton = false
-                        NameTextfeld = true
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                            Textfeld = true
-                            start = true
-                        }
-                    } label: {
-                        Image(systemName: "play.square")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(height: 60)
-                    }
-                }
-                
-                
-                if Textfeld == true {
-                    
-                    Text(text)
-                        .padding()
-                        .font(.system(size: 30))
-                    
-                    //reset Button
-                    Button {
-                        DispatchQueue.main.asyncAfter(deadline: .now()) {
-                            
-                            xGeschwindigkeit = 0.0
-                            yGeschwindigkeit = 0.0
-                            zGeschwindigkeit = 0.0
-                            gesammtGeschwindigkeit = 0.0
-                            xDistanz = 0.0
-                            yDistanz = 0.0
-                            zDistanz = 0.0
-                            gesammtDistanz = 0.0
-                            teileDatei()
-                        }
-                    } label: {
-                        Image(systemName: "repeat.circle")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(height: 40)
-                    }
-                    
-                    Text("X: \(xBeschleunigung, specifier: "%.3f")")
-                        .padding(.top, 5)
-                    Text("Y: \(yBeschleunigung, specifier: "%.3f")")
-                        .padding(.top, 5)
-                    Text("Z: \(zBeschleunigung, specifier: "%.3f")")
-                        .padding(.top, 5)
-                    Text("X: \(xDistanz, specifier: "%.3f")")
-                        .padding(.top, 5)
-                    Text("Y: \(yDistanz, specifier: "%.3f")")
-                        .padding(.top, 5)
-                    Text("Z: \(zDistanz, specifier: "%.3f")")
-                        .padding(.top, 5)
-                    Text("Geschwindgkeit:\(gesammtGeschwindigkeit, specifier: "%.3f")")
-                        .padding(.top, 5)
-                    Text("Distanz:\(gesammtDistanz, specifier: "%.3f")")
-                        .padding(.top, 5)
-                    Text("Längengrad: \(LaengenGrad, specifier: "%.3f")")
-                        .padding(.top, 5)
-                    Text("Breitengrad: \(BreitenGrad, specifier: "%.3f")")
-                        .padding(.top, 5)
-                    Text("Höhe über Meer: \(hoehe, specifier: "%.3f")")
-                        .padding(.top, 5)
-                    Text("GPS-Distanz: \(gesammtBewegung, specifier: "%.3f")")
-                        .padding(.top, 5)
-                }
-            }
-            
-            
-            VStack {   //linke Ecke oben
-                HStack {
-                    Text("")
-                    Spacer()
-                }
-                Spacer()
-            }
-            
-            VStack {    //rechte Ecke oben
-                HStack {
-                    Spacer()
-                    Text(AppName)
+                    Text("Tippe um zu starten")
                         .font(.title)
-                        .font(.system(size: 15))
-                        .padding()
+                        .bold()
                 }
-                Spacer()
             }
-        }
-        
-        
-        .onAppear { //sobald App gestartet wird, wird GPS ausgelesen
-        
-        }
-        
-        .onChange(of: start) { newValue in
-            if newValue == true {
-                startMessung() //Beschleunigunssensoren
-    
-                locationDelegate.onLocationUpdate = { lat, lon, alt in // GPS auslesen
-                    BreitenGrad = lat
-                    LaengenGrad = lon
-                    hoehe = alt
+            else {
+                Map(position: $position) {                              //Karte wird angezeigt
+                    if let userLocation = userLocation {
+                        Annotation("", coordinate: userLocation) {      //Standort wird angezeigt
+                            Circle()
+                                .fill(Color.blue)
+                                .frame(width: 20, height: 20)
+                                .overlay(
+                            Circle()
+                                .stroke(Color.white, lineWidth: 3))
+                        }
+                    }
+                }
+                    
+                .ignoresSafeArea()
+                
+                
+                
+                VStack {
+                    Spacer()
+                    
+                    VStack(spacing: 20) {
+                        
+                        HStack {
+                            Text(String(format: "%.1f", Vgesammt))
+                                .foregroundColor(.white)
+                            
+                            Spacer()
+                            
+                            Text(String(format: "%.1f", MaxGeschwindigkeit))
+                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                                .frame(maxWidth: 150)
+                            
+                            Spacer()
+                            
+                            Text(String(format: "%.1f", MomentanGeschwindigkeitGPS))
+                                .foregroundColor(.white)
+                        }
+                        .padding(.horizontal, 30)
+                        .padding(.top, 30)
+                        
+                        
+                        
+                        Button {
+                            StartStopp.toggle()
+                            
+                            if StartStopp == false {
+                                
+                            }
+                            
+                            if StartStopp == true {
+                                
+                            }
+                            
+                        } label: {
+                            
+                            Image(systemName: StartStopp ? "stop.circle" : "play.circle")           // Passendes Bild wird gezeigt
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(height: 60)
+                                .foregroundColor(.white)
+                        }
+                        .padding(.bottom, 30)
+                    }
+                    .background(Color.black)
+                    .cornerRadius(30)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 50)
                 }
                 
-                locationManager.delegate = locationDelegate
-                locationManager.desiredAccuracy = kCLLocationAccuracyBest
-                locationManager.requestWhenInUseAuthorization()
-                locationManager.startUpdatingLocation()
-                GPSberechnung()
+                VStack {
+                    HStack {
+                        Spacer()
+                        VStack(alignment: .trailing, spacing: 10) {
+                            Button {
+                                withAnimation {
+                                    showMenu.toggle()
+                                }
+                            } label: {
+                                Image(systemName: "line.3.horizontal.decrease.circle")
+                                    .font(.system(size: 20))
+                                    .foregroundColor(.white)
+                                    .padding(8)
+                                    .background(Color.black.opacity(0.9))
+                                    .clipShape(Circle())
+                            }
+                            
+                            if showMenu {
+                                VStack(alignment: .trailing, spacing: 10) {
+                                    Button("Reset") {
+                                        accX = 0.00
+                                        accY = 0.00
+                                        accZ = 0.00
+                                        Vx = 0.00
+                                        Vy = 0.00
+                                        Vz = 0.00
+                                    }
+                                        .padding(8)
+                                        .background(Color.black)
+                                        .foregroundColor(.white)
+                                        .cornerRadius(8)
+                                        .shadow(radius: 3)
+                                        
+                                    Button("Daten exportieren") {
+                                        teileDatei()
+                                    }
+                                        .padding(8)
+                                        .background(Color.black)
+                                        .foregroundColor(.white)
+                                        .cornerRadius(8)
+                                        .shadow(radius: 3)
+                                }
+                                .transition(.opacity)
+                            }
+                        }
+                        .padding(.trailing, 10)
+                        .padding(.top, 10)
+                    }
+                    Spacer()
+                }
             }
         }
+        .onTapGesture {
+            if showUI == false && visibleButton == true {
+                visibleButton = false
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    Textfeld = true
+                    start = true
+                    showUI = true
+                }
+            }
+        }
+        
+        .onAppear {    //Was Passieren soll wenn App gestartet wird
+        }
+        
+        .onChange(of: start) {
+            startMessung()              //Beschleunigunssensoren
+            GPSberechnung()             //GPS Funktion
+            Maps()                      //Funktion fuer die karte
+
+            
+            
+            // Daten fuer GPS
+            locationDelegate.onLocationUpdate = { lat, lon, alt, speed in               // GPS komponente zuweisen
+                BreitenGrad = lat
+                LaengenGrad = lon
+                hoehe = alt
+                MomentanGeschwindigkeitGPS = speed
+                Maps()
+                userLocation = CLLocationCoordinate2D(latitude: lat, longitude: lon) //Standort auf der Karte
+            }
+            
+            locationManager.delegate = locationDelegate
+            locationManager.desiredAccuracy = kCLLocationAccuracyBest
+            locationManager.requestWhenInUseAuthorization()
+            locationManager.startUpdatingLocation()
+
+        }
+        
      
         .onDisappear {
             manager.stopDeviceMotionUpdates()
@@ -259,10 +372,32 @@ struct ContentView: View {
     }
     
     
+
     
     
     
+    
+    
+    
+    
+    
+    
+    
+    
+
     //Funktionen:::::
+    
+    //AppleMaps Karte
+    
+    private func Maps() {    //Funktion um Daten zu akktualisieren          Quelle: https://bugfender.com/blog/mapkit-swiftui/ Bemerkung: nicht Eins zu Eins jedoch wurden Elemente uebernommen
+        position = .region(
+                    MKCoordinateRegion(
+                        center: CLLocationCoordinate2D(latitude: BreitenGrad, longitude: LaengenGrad),
+                        span: MKCoordinateSpan(latitudeDelta: 0.002, longitudeDelta: 0.002)))
+    }
+    
+    
+    
     
     
     //Funktion zum speichern der Daten
@@ -316,7 +451,7 @@ struct ContentView: View {
     
     //FUnktion: auslesen und integrieren der Beschleunigungsdaten:
     
-    private func startMessung() {
+    func startMessung() {
         
         //Sensoren pruefen
         guard manager.isDeviceMotionAvailable else {
@@ -324,55 +459,94 @@ struct ContentView: View {
             return
         }
         
+        
         //INtervall
         manager.deviceMotionUpdateInterval = 0.01
+        
+        
         
         // Start Messung
         manager.startDeviceMotionUpdates(using: .xMagneticNorthZVertical, to: .main) { motion, error in
             guard let motion = motion else { return }
-                
-            let quat = motion.attitude.quaternion //Drehung wird in Quaternion ausgelesen weil es mit Drehmatrix nicht geklappt hat
-            let m = quat.RotationMatrix()   // wird im Matrix umgewandelt
-
-            
-            // Beschleunigung im Weltkoordinatensistem:(mit Drehmatrix gedreht)
-            xWelt = m.m11 * xBeschleunigung + m.m12 * yBeschleunigung + m.m13 * zBeschleunigung
-            yWelt = m.m21 * xBeschleunigung + m.m22 * yBeschleunigung + m.m23 * zBeschleunigung
-            zWelt = m.m31 * xBeschleunigung + m.m32 * yBeschleunigung + m.m33 * zBeschleunigung
-        
+  
             
             //Beschleunigungsdaten in g ohne g
-            let acc = motion.userAcceleration
-            xBeschleunigung = acc.x
-            yBeschleunigung = acc.y
-            zBeschleunigung = acc.z
+            accX = motion.userAcceleration.x
+            accY = motion.userAcceleration.y
+            accZ = motion.userAcceleration.z
             
-             //rohes g
-            let gx = motion.gravity.x
-            let gy = motion.gravity.y
-            let gz = motion.gravity.z
             
-            let raw_accX = xBeschleunigung //+ gx
-            let raw_accY = xBeschleunigung //+ gy
-            let raw_accZ = xBeschleunigung //+ gz
+            //rohes g
+            gx = motion.gravity.x
+            gy = motion.gravity.y
+            gz = motion.gravity.z
+        
             
             //Magnetfeld
-            let magnetfeld = motion.magneticField
-            let magX = magnetfeld.field.x
-            let magY = magnetfeld.field.y
-            let magZ = magnetfeld.field.z
+            magX = motion.magneticField.field.x
+            magY = motion.magneticField.field.y
+            magZ = motion.magneticField.field.z
+            
+            magnetfeld = sqrt(magX*magX + magY*magY + magZ*magZ)
             
             
-            // Beschleunigung in Weltkoordinaten drehen
-            xWelt = m.m11 * xBeschleunigung + m.m12 * yBeschleunigung + m.m13 * zBeschleunigung
-            yWelt = m.m21 * xBeschleunigung + m.m22 * yBeschleunigung + m.m23 * zBeschleunigung
-            zWelt = m.m31 * xBeschleunigung + m.m32 * yBeschleunigung + m.m33 * zBeschleunigung
+            //Drehdaten mit Gyroskop
+            rollX = motion.rotationRate.x
+            pitchY = motion.rotationRate.y
+            yawZ = motion.rotationRate.z
             
+            //Berechnungen:
             
-            xWeltOhneG = xWelt*9.81
-            yWeltOhneG = yWelt*9.81
-            zWeltOhneG = zWelt*9.81
+            //Tiefpassfilter:
+            //Variabeln:
+            
+            let alpha_offset = 0.99     //Vergessensfaktor fuer offset schaetzung
+            let remove_offset = 1    // 0 - Offset nicht wegrechnen 1 - Offset wegrechnen
+            let thr_offset = 0.01       // m/s/s Grenze
+            let delta_t = 0.01
+            
     
+   
+            
+            // Offset schätzen (läuft immer)
+            if abs(accX) < thr_offset {
+                a_offset_x = (1 - alpha_offset) * accX + alpha_offset * a_offset_x
+            }
+            if abs(accY) < thr_offset {
+                a_offset_y = (1 - alpha_offset) * accY + alpha_offset * a_offset_y
+            }
+            if abs(accZ) < thr_offset {
+                a_offset_z = (1 - alpha_offset) * accZ + alpha_offset * a_offset_z
+            }
+
+            // Offset wegrechnen (nur wenn remove_offset == 1)
+            if remove_offset == 1 {
+                accX_real = accX - a_offset_x
+                accY_real = accY - a_offset_y
+                accZ_real = accZ - a_offset_z
+            }
+            
+            //integreiren der Eulerwinkel sind in rad/s gegeben
+            roll = roll + delta_t * rollX
+            pitch = pitch + delta_t * pitchY
+            yaw = yaw + delta_t * yawZ
+            
+            let m = eulerToRotationMatrix(roll: roll, pitch: pitch, yaw: yaw)
+            
+            
+            
+            // Beschleunigung im Weltkoordinatensistem:(mit Drehmatrix gedreht)
+            xWelt = m.m11 * accX_real + m.m12 * accY_real + m.m13 * accZ_real
+            yWelt = m.m21 * accX_real + m.m22 * accY_real + m.m23 * accZ_real
+            zWelt = m.m31 * accX_real + m.m32 * accY_real + m.m33 * accZ_real
+        
+            //INtegration:
+            
+            Vx = Vx + delta_t * xWelt * 9.81
+            Vy = Vy + delta_t * yWelt * 9.81
+            Vz = Vz + delta_t * zWelt * 9.81
+            
+            Vgesammt = sqrt(Vx * Vx + Vy * Vy + Vz * Vz)
             
             //Daten speichern
         
@@ -380,13 +554,13 @@ struct ContentView: View {
                 timestamp: Date(),
                 
                 // Rohdaten
-                RollX: motion.rotationRate.x,
-                PitchY: motion.rotationRate.y,
-                YawZ: motion.rotationRate.z,
+                RollX: rollX,
+                PitchY: pitchY,
+                YawZ: yawZ,
                 
-                accX: raw_accX,
-                accY: raw_accY,
-                accZ: raw_accZ,
+                accX: accX,
+                accY: accY,
+                accZ: accZ,
                 
                 gX: gx,
                 gY: gy,
@@ -405,69 +579,88 @@ struct ContentView: View {
     
         }
     }
+    
+    //Eulerwinkel zu MAtrix
+    
+    func eulerToRotationMatrix(roll: Double, pitch: Double, yaw: Double) -> CMRotationMatrix {
+        
+        let cr = cos(roll),  sr = sin(roll)
+        let cp = cos(pitch), sp = sin(pitch)
+        let cy = cos(yaw),   sy = sin(yaw)
+        
+        return CMRotationMatrix(
+            m11: cy * cp,
+            m12: cy * sp * sr - sy * cr,
+            m13: cy * sp * cr + sy * sr,
+            
+            m21: sy * cp,
+            m22: sy * sp * sr + cy * cr,
+            m23: sy * sp * cr - cy * sr,
+            
+            m31: -sp,
+            m32: cp * sr,
+            m33: cp * cr
+        )
+    }
 
     
-    func GPSberechnung() {                 //Funktion fuer die berechnung mit GPS
+    func GPSberechnung() {                              //Funktion fuer die berechnung mit GPS
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
+        
             
-            if einmalig == 1 {                   //Starzeit
-                Startzeit = Date()
-                einmalig = 2
-            }
-            
-            if einmalig == 0 {                  // altBreitenGrad definieren - erster durchgang misst nichts
+            if einmalig == 0 {                          // altBreitenGrad definieren - erster durchgang misst nichts
                 altBreitenGrad = BreitenGrad
                 altLaengenGrad = LaengenGrad
                 althoehe = hoehe
                 einmalig = 1
             }
             
+            if einmalig == 1 {                          //Starzeit
+                Startzeit = Date()
+                einmalig = 2
+
+            }
             
-            DeltaBG = BreitenGrad - altBreitenGrad //111.133m pro Breitengrad veränderung
-            DeltaLG = LaengenGrad - altLaengenGrad //111.319m * cos(BreitenGrad) pro Längengrad veränderung
+            
+            
+            DeltaBG = BreitenGrad - altBreitenGrad      //111133m pro Breitengrad veränderung
+            DeltaLG = LaengenGrad - altLaengenGrad      //111319m * cos(BreitenGrad) pro Längengrad veränderung
             DeltaHoehe = hoehe - althoehe
             
-            RadiantBreitenGrad = BreitenGrad*Double.pi/180 //wird in Radiant umgerechnet damit cos funktion benutzt werden kann
+            RadiantBreitenGrad = BreitenGrad*Double.pi/180      //wird in Radiant umgerechnet damit cos funktion benutzt werden kann
             
-            MeterBewegungBG = abs(DeltaBG) * 111.133
-            MeterBewegungLG = abs(DeltaLG) * 111.319 * cos(RadiantBreitenGrad)
+            MeterBewegungBG = abs(DeltaBG) * 111133                                     //Distanz in m
+            MeterBewegungLG = abs(DeltaLG) * 111319 * cos(RadiantBreitenGrad)           //Distanz in m
             
             altBreitenGrad = BreitenGrad
             altLaengenGrad = LaengenGrad
             althoehe = hoehe
             
+            
             //Strecke in Metern
             
-            DeltaBewegung = sqrt((MeterBewegungBG * MeterBewegungBG) + (MeterBewegungLG * MeterBewegungLG) + (DeltaHoehe * DeltaHoehe)) // veränderung
+            DeltaBewegung = sqrt((MeterBewegungBG * MeterBewegungBG) + (MeterBewegungLG * MeterBewegungLG) + (DeltaHoehe * DeltaHoehe)) // gesammte Bewegung
             gesammtBewegung = gesammtBewegung + DeltaBewegung   // gesammt Strecke
             
             DurchschnittGeschwindigkeitGPS = gesammtBewegung / (Date().timeIntervalSince(Startzeit))
-            MomentanGeschwindigkeitGPS = DeltaBewegung / 1
             
+            
+            //Geschwindigkeit
+            
+            if MomentanGeschwindigkeitGPS <= 0 {                //hat teilweise leicht negative Werte ausgegeben werden so entfernt
+                MomentanGeschwindigkeitGPS = 0.00
+            }
+            else {
+                MomentanGeschwindigkeitGPS = MomentanGeschwindigkeitGPS*3.6         //in km/h
+            }
+            
+            if MomentanGeschwindigkeitGPS > MaxGeschwindigkeit {
+                MaxGeschwindigkeit = MomentanGeschwindigkeitGPS
+                
+            }
         }
     }
 }
-
-
-
-
-
-extension CMQuaternion {   //Quaternion in Matrize umwandeln
-    func RotationMatrix() -> CMRotationMatrix {
-        var m = CMRotationMatrix()
-        let xx = x*x, yy = y*y, zz = z*z
-        let xy = x*y, xz = x*z, yz = y*z
-        let wx = w*x, wy = w*y, wz = w*z
-        
-        m.m11 = 1 - 2*(yy + zz);        m.m12 = 2*(xy - wz);            m.m13 = 2*(xz + wy)
-        m.m21 = 2*(xy + wz);            m.m22 = 1 - 2*(xx + zz);        m.m23 = 2*(yz - wx)
-        m.m31 = 2*(xz - wy);            m.m32 = 2*(yz + wx);            m.m33 = 1 - 2*(xx + yy)
-        
-        return m
-    }
-}
-
-
 
 
 
