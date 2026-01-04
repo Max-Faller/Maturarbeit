@@ -3,6 +3,11 @@
 <plist version="1.0">
 <dict>
 	<key>NSMotionUsageDescription </key>
-	<string>Beschleunigung fur App</string>
+	<string>Beschleunigung für App</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>location</string>
+	</array>
 </dict>
 </plist>

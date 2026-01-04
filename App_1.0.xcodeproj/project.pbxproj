@@ -401,6 +401,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "App-1-0-Info.plist";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "App benötigt GPS zugriff";
 				INFOPLIST_KEY_NSMotionUsageDescription = "bewegung messen";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -432,6 +433,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "App-1-0-Info.plist";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "App benötigt GPS zugriff";
 				INFOPLIST_KEY_NSMotionUsageDescription = "bewegung messen";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
