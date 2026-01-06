@@ -74,8 +74,8 @@ Mit dem Stop-Button die Messung beenden oder mit dem export-Button im Menu oben 
 ## Voraussetzungen
 
 iPhone mit iOS 17 oder neuer  
-Bewegungssensoren und GPS müssen verfügbar sein  
-Standort- und Bewegungssensor-Berechtigungen müssen erlaubt werden  
+Apple Developper Account 
+Standort- und Bewegungssensor-Berechtigungen müssen erlaubt werden um die App funktionsfähig zu benutzten  
 
 ---
 
