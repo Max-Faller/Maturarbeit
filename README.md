@@ -88,33 +88,11 @@ Standort- und Bewegungssensor-Berechtigungen müssen erlaubt werden
 
 Für die Entwicklung und Installation der App wird ein Apple Developer Account benötigt.
 
-Ein kostenloser Apple-ID-Account reicht aus, um:
-
-Die App in Xcode zu kompilieren  
-Die App auf einem eigenen iPhone zu installieren  
-Sensor- und GPS-Funktionen zu testen  
-
-Einschränkungen des kostenlosen Accounts:
-
-Die App ist nur auf eigenen Geräten lauffähig  
-Das Zertifikat ist zeitlich begrenzt und muss regelmäßig erneuert werden  
-Keine Veröffentlichung im App Store möglich  
-
-Ein kostenpflichtiger Apple Developer Account (99 USD pro Jahr) wird benötigt, um:
-
-Die App im App Store zu veröffentlichen  
-TestFlight für externe Tester zu nutzen  
-Langfristig gültige Zertifikate zu verwenden  
-Erweiterte App-Dienste zu aktivieren  
-
 ---
 
 ## Ziel des Projekts
 
-Analyse und Vergleich von GPS- und inertialer Bewegungserfassung  
-Untersuchung von Sensorrauschen und Drift  
-Grundlagen der Sensorfusion und Signalverarbeitung  
-Export von Messdaten für externe Auswertung in Python, MATLAB oder Excel  
+Analyse und Vergleich von GPS- und sensorbasierter Bewegungserfassung  
 
 ---
 
