@@ -1,9 +1,9 @@
 # Geschwindigkeitsbestimmung mit iPhone-Sensoren 
 
-Diese iOS-App erfasst Bewegungs-, Orientierungs- und GPS-Daten eines iPhones in Echtzeit.  
-Sie nutzt die internen Sensoren des Geräts und speichert alle Messwerte zur späteren Auswertung in einer CSV-Datei.
+Diese iOS-App erfasst Bewegungs-, Orientierungs- und GNSS-Daten eines iPhones in Echtzeit.  
+Sie nutzt die Sensoren des Geräts und speichert alle Messwerte zur späteren Auswertung in einer CSV-Datei.
 
-Die App wurde mit SwiftUI, CoreMotion, CoreLocation und MapKit entwickelt.
+Die App wurde mit SwiftUI, CoreMotion, CoreLocation und MapKit in der Ungebung xCode entwickelt.
 
 ---
 
